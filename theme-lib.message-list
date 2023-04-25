@@ -5,15 +5,10 @@
  
 <#assign showPaging = "true" />
 <#assign sorting = http.request.parameters.name.get("sort", "") />
- 
+
 <#-- page size -->
-<#assign pageSize = coreNode.settings.name.get("layout.messages_per_page_linear", "10")?number />
-<#if user.registered>
-   <#assign pageSizeUser = settings.name.get("layout.messages_per_page_linear") />
-   <#if pageSizeUser?number != pageSize?number>
-       <#assign pageSize = pageSizeUser />
-   </#if>
-</#if>
+<#-- set to 30-->
+<#assign pageSize = 30?number />
  
 <#if webuisupport.path.parameters.name.get("label-name")??>
    <#assign label = webuisupport.path.parameters.name.get("label-name").getText() />
@@ -33,20 +28,32 @@
 <#assign baseQry = "SELECT id, subject, body, metrics.views, tags, labels, images, post_time, post_time_friendly, conversation.last_post_time, moderation_status, conversation.last_post_time_friendly, author.login, author.avatar.message, view_href, author.view_href, read_only, author.rank.name, author.rank.color, author.rank.icon_left, author.rank.bold, author.rank.icon_right, author.online_status,board.id, author.avatar.profile, board.view_href, board.title, replies.count(*), kudos.sum(weight), conversation.solved, user_context.read FROM messages WHERE depth = 0 AND board.id = '${coreNode.id}' " />
 <#assign basePagingQry = "SELECT count(*) FROM messages WHERE depth = 0 AND board.id = '${coreNode.id}' " />
 <#assign whereClause = label_query />
- 
+<#-- adding sorting methods-->
 <#switch sorting>
-   <#case "kudos">
-       <#assign orderClause = "ORDER BY kudos.sum(weight) DESC " />
-   <#break>
-   <#case "views">
-       <#assign orderClause = "ORDER BY metrics.views DESC " />
-   <#break>
-   <#case "replies">
-       <#assign orderClause = "ORDER BY replies.count(*) DESC " />
-   <#break>
-   <#default>
-       <#assign orderClause = "ORDER BY conversation.last_post_time DESC " />
-   <#break>
+<#case "kudos">
+<#assign orderClause = "ORDER BY kudos.sum(weight) DESC " />
+<#break>
+<#case "views">
+<#assign orderClause = "ORDER BY metrics.views DESC " />
+<#break>
+<#case "replies">
+<#assign orderClause = "ORDER BY replies.count() DESC " />
+<#break>
+<#case "oldest">
+<#assign orderClause = "ORDER BY conversation.last_post_time ASC " />
+<#break>
+<#case "kudos-asc">
+<#assign orderClause = "ORDER BY kudos.sum(weight) ASC " />
+<#break>
+<#case "unanswered">
+<#assign orderClause = "AND replies.count() = 0 ORDER BY conversation.last_post_time DESC" />
+<#break>
+<#case "no-solution">
+<#assign orderClause = "AND accepted_solution_post_id IS NULL ORDER BY conversation.last_post_time DESC" />
+<#break>
+<#default>
+<#assign orderClause = "ORDER BY conversation.last_post_time ASC " />
+<#break>
 </#switch>
  
 <#assign limitClause = "LIMIT ${pageSize} OFFSET ${offset}" />
@@ -76,7 +83,12 @@
                    <option value="views" <#if sorting == 'views'>selected</#if>>${text.format("theme-lib.community-activity.views")}</option>
                    <option value="replies" <#if sorting == 'replies'>selected</#if>>${text.format("theme-lib.community-activity.replies")}</option>
                    <option value="kudos" <#if sorting == 'kudos'>selected</#if>>${text.format("theme-lib.community-activity.kudos")}</option>
-               </select>
+                   <option value="no-solution" <#if sorting == 'no-solution'>selected</#if>>${text.format("theme-lib.community-activity.kudos")}</option>
+                   <option value="oldest" <#if sorting == 'oldest'>selected</#if>>${text.format("theme-lib.community-activity.kudos")}</option>
+                   <option value="kudos-asc" <#if sorting == 'kudos-asc'>selected</#if>>${text.format("theme-lib.community-activity.kudos")}</option>
+                   <option value="unanswered" <#if sorting == 'unanswered'>selected</#if>>${text.format("theme-lib.community-activity.kudos")}</option>
+
+               </select> <#-- added sort methods to dropdown menu-->
                <#if page.interactionStyle=="idea">
                  <@component id="custom.idea.status.label" />
                <#else>
@@ -148,8 +160,9 @@
        <#assign msg_status_icon = "custom-thread-floated" />
        <#assign msg_status_txt = "theme-lib.general.thread-floated" />
    </#if>
+   <#-- class name chaned to 'thread-done' -->
    <#if msg.conversation.solved>
-       <#assign solved = "custom-thread-solved" />
+       <#assign solved = "thread-done" />
        <#assign msg_status_icon = "custom-thread-solved" />
        <#assign msg_status_txt = "theme-lib.general.thread-solved" />
    </#if>
